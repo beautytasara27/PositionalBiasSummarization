@@ -9,19 +9,21 @@ def build_prompt(strategy: str, concatenated_reviews: str) -> str:
 
     if strategy == "baseline":
         return (
-            "Summarize the customer opinions in 3-5 concise sentences. "
+            "Summarize the customer opinions in 2 concise sentences. "
             f"Reviews:\n{concatenated_reviews}"
         )
 
     if strategy == "cot":
         return (
-            "Analyze the reviews step-by-step internally, then provide ONLY the final summary in 3-5 sentences. "
+            "Summarize the customer opinions in 2 concise sentences. Think step by step "
             f"Reviews:\n{concatenated_reviews}"
         )
 
     if strategy == "repetition":
         return (
-            "Summarize in 3-5 sentences. Mention any negative/minority opinion if present. "
+            "Summarize the customer opinions in 2 concise sentences."
+            f"Reviews:\n{concatenated_reviews}"
+            "Summarize the customer opinions in 2 concise sentences."
             f"Reviews:\n{concatenated_reviews}"
         )
 

@@ -6,7 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 
 
-POSITIVE_MIN_STARS = 4
+POSITIVE_MIN_STARS = 5
 NEGATIVE_MAX_STARS = 2
 
 
@@ -33,13 +33,14 @@ def load_eligible_business_ids(stats_csv_path: Path):
     with stats_csv_path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
-            if row.get("meets_10_positive_1_negative") not in {"True", "true", "1"}:
+            if row.get("meets_10_five_star_1_negative") not in {"True", "true", "1"}:
                 continue
             eligible.append(
                 {
                     "business_id": row["business_id"],
                     "business_name": row.get("name", ""),
                     "review_count": int(row.get("review_count") or 0),
+                    "five_star_reviews": int(row.get("five_star_reviews") or 0),
                     "positive_reviews": int(row.get("positive_reviews") or 0),
                     "negative_reviews": int(row.get("negative_reviews") or 0),
                 }
@@ -170,7 +171,7 @@ def main():
 
     if len(eligible_businesses) < args.business_limit:
         raise ValueError(
-            f"Only {len(eligible_businesses)} businesses meet the 10-positive/1-negative requirement; "
+            f"Only {len(eligible_businesses)} businesses meet the 10-five-star/1-negative requirement; "
             f"need {args.business_limit}."
         )
 
@@ -186,11 +187,13 @@ def main():
     dataset_rows = build_dataset_rows(selected_businesses, collected_reviews, args.seed)
     write_dataset(dataset_rows, output_path)
 
-    per_business_counts = defaultdict(lambda: {"positive": 0, "negative": 0})
+    per_business_counts = defaultdict(lambda: {"five_star": 0, "negative": 0})
     for row in dataset_rows:
-        per_business_counts[row["business_id"]][row["sentiment"]] += 1
+        key = "five_star" if row["sentiment"] == "positive" else "negative"
+        per_business_counts[row["business_id"]][key] += 1
 
     print("Positional bias dataset created")
+    print(f"Businesses meeting the requirement: {len(eligible_businesses)}")
     print(f"Businesses selected: {len(selected_businesses)}")
     print(f"Total rows written: {len(dataset_rows)}")
     print(f"Expected rows: {len(selected_businesses) * 11}")
@@ -201,7 +204,7 @@ def main():
         counts = per_business_counts[business["business_id"]]
         print(
             f"- {business.get('business_name') or business['business_id']}: "
-            f"positive={counts['positive']}, negative={counts['negative']}"
+            f"five_star={counts['five_star']}, negative={counts['negative']}"
         )
 
 

@@ -30,7 +30,7 @@ def classify_review(stars: float):
 
 
 def analyze_reviews(path: Path):
-    counts = defaultdict(lambda: {"total": 0, "positive": 0, "negative": 0, "neutral": 0})
+    counts = defaultdict(lambda: {"total": 0, "five_star": 0, "positive": 0, "negative": 0, "neutral": 0})
     total_reviews = 0
 
     with path.open("r", encoding="utf-8") as handle:
@@ -44,6 +44,8 @@ def analyze_reviews(path: Path):
             label = classify_review(stars)
 
             counts[business_id]["total"] += 1
+            if stars == 5:
+                counts[business_id]["five_star"] += 1
             counts[business_id][label] += 1
             total_reviews += 1
 
@@ -58,10 +60,11 @@ def build_rows(business_metadata, review_counts):
         meta = business_metadata.get(business_id, {})
         counts = review_counts.get(business_id, {"total": 0, "positive": 0, "negative": 0, "neutral": 0})
         total = counts["total"]
+        five_star = counts.get("five_star", 0)
         positive = counts["positive"]
         negative = counts["negative"]
         neutral = counts["neutral"]
-        meets_threshold = positive >= 10 and negative >= 1
+        meets_threshold = five_star >= 10 and negative >= 1
 
         rows.append(
             {
@@ -69,14 +72,15 @@ def build_rows(business_metadata, review_counts):
                 "name": meta.get("name", ""),
                 "reported_review_count": meta.get("reported_review_count", ""),
                 "review_count": total,
+                "five_star_reviews": five_star,
                 "positive_reviews": positive,
                 "negative_reviews": negative,
                 "neutral_reviews": neutral,
-                "meets_10_positive_1_negative": meets_threshold,
+                "meets_10_five_star_1_negative": meets_threshold,
             }
         )
 
-    rows.sort(key=lambda row: (row["review_count"], row["positive_reviews"], row["negative_reviews"]), reverse=True)
+    rows.sort(key=lambda row: (row["review_count"], row["five_star_reviews"], row["negative_reviews"]), reverse=True)
     return rows
 
 
@@ -86,10 +90,11 @@ def write_csv(rows, output_path: Path):
         "name",
         "reported_review_count",
         "review_count",
+        "five_star_reviews",
         "positive_reviews",
         "negative_reviews",
         "neutral_reviews",
-        "meets_10_positive_1_negative",
+        "meets_10_five_star_1_negative",
     ]
 
     with output_path.open("w", newline="", encoding="utf-8") as handle:
@@ -116,7 +121,7 @@ def main():
     rows = build_rows(business_metadata, review_counts)
 
     reviewed_business_rows = [row for row in rows if row["review_count"] > 0]
-    threshold_rows = [row for row in reviewed_business_rows if row["meets_10_positive_1_negative"]]
+    threshold_rows = [row for row in reviewed_business_rows if row["meets_10_five_star_1_negative"]]
     review_counts_only = [row["review_count"] for row in reviewed_business_rows]
 
     write_csv(rows, output_path)
@@ -129,6 +134,7 @@ def main():
     print(f"Businesses in business.json: {total_businesses}")
     print(f"Businesses with at least one review: {reviewed_businesses}")
     print(f"Total reviews in review.json: {total_reviews}")
+    print(f"Five-star reviews: {sum(row['five_star_reviews'] for row in reviewed_business_rows)}")
     print(f"Positive reviews (4-5 stars): {sum(row['positive_reviews'] for row in reviewed_business_rows)}")
     print(f"Negative reviews (1-2 stars): {sum(row['negative_reviews'] for row in reviewed_business_rows)}")
     print(f"Neutral reviews (3 stars): {sum(row['neutral_reviews'] for row in reviewed_business_rows)}")
@@ -140,7 +146,7 @@ def main():
     print(f"Maximum reviews: {max(review_counts_only) if review_counts_only else 0}")
     print()
     print("Threshold check")
-    print(f"Businesses with at least 10 positive and 1 negative review: {threshold_businesses}")
+    print(f"Businesses with at least 10 five-star reviews and at least 1 negative review: {threshold_businesses}")
     if reviewed_businesses:
         print(f"Share of reviewed businesses meeting threshold: {threshold_businesses / reviewed_businesses:.2%}")
     print()
@@ -150,8 +156,8 @@ def main():
     for row in reviewed_business_rows[:10]:
         print(
             f"- {row['name'] or row['business_id']}: total={row['review_count']}, "
-            f"positive={row['positive_reviews']}, negative={row['negative_reviews']}, "
-            f"meets_threshold={row['meets_10_positive_1_negative']}"
+            f"five_star={row['five_star_reviews']}, negative={row['negative_reviews']}, "
+            f"meets_threshold={row['meets_10_five_star_1_negative']}"
         )
 
 
