@@ -8,8 +8,10 @@ OPENROUTER_MODELS = {
     "gemini-2.0-flash-lite": "google/gemini-2.0-flash-lite-001",
     "gemini-2.0-flash": "google/gemini-2.0-flash-001",
     "gpt-4o-mini": "openai/gpt-4o-mini",
+    "gpt-4o": "openai/gpt-4o",
     "claude-3-haiku": "anthropic/claude-3-haiku",
     "claude-3.7-sonnet": "anthropic/claude-3.7-sonnet",
+    "llama-3.2-3b-instruct": "meta-llama/llama-3.2-3b-instruct",
 }
 
 MODEL_ALIASES = {
@@ -17,12 +19,15 @@ MODEL_ALIASES = {
     "gemini 2.0 flash-lite": OPENROUTER_MODELS["gemini-2.0-flash-lite"],
     "gemini 2.0 flash": OPENROUTER_MODELS["gemini-2.0-flash"],
     "gpt-4o mini": OPENROUTER_MODELS["gpt-4o-mini"],
+    "gpt 4o": OPENROUTER_MODELS["gpt-4o"],
     "claude 3 haiku": OPENROUTER_MODELS["claude-3-haiku"],
     "claude 3.7 sonnet": OPENROUTER_MODELS["claude-3.7-sonnet"],
+    "llama 3.2 3b instruct": OPENROUTER_MODELS["llama-3.2-3b-instruct"],
     # Kebab-case aliases
     "gemini-2.0-flash-lite": OPENROUTER_MODELS["gemini-2.0-flash-lite"],
     "gemini-2.0-flash": OPENROUTER_MODELS["gemini-2.0-flash"],
     "gpt-4o-mini": OPENROUTER_MODELS["gpt-4o-mini"],
+    "gpt-4o": OPENROUTER_MODELS["gpt-4o"],
     "claude-3-haiku": OPENROUTER_MODELS["claude-3-haiku"],
     "claude-3.7-sonnet": OPENROUTER_MODELS["claude-3.7-sonnet"],
 }

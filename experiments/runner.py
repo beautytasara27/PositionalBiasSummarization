@@ -8,7 +8,18 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from .evaluation import compression_ratio, get_negative_review_by_position, minority_recall, output_length_words
+from .evaluation import (
+    build_geval_prompt,
+    cosine_similarity_texts,
+    expected_aggregate_sentiment,
+    extract_position_block_text,
+    output_length_words,
+    parse_geval_score,
+    score_reviews_vader,
+    score_text_vader,
+    sentiment_deviation,
+    split_reviews,
+)
 from .model_client import BaseModelClient
 from .prompting import STRATEGIES, build_prompt
 
@@ -21,6 +32,10 @@ class RunConfig:
     sample_size: int
     seed: int
     output_dir: Path
+    evaluator_model: str
+    evaluator_temperature: float
+    evaluator_max_tokens: int
+    enable_geval: bool = True
 
 
 def load_dataset_rows(csv_path: Path) -> list[dict]:
@@ -35,8 +50,35 @@ def sample_rows(rows: list[dict], sample_size: int, seed: int) -> list[dict]:
     return rng.sample(rows, sample_size)
 
 
+def _int_value(row: dict, key: str, default: int | None = None) -> int | None:
+    value = row.get(key)
+    if value in {None, ""}:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _float_value(value, default: float | None = None) -> float | None:
+    if value in {None, ""}:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _average(values: list[float]) -> float | None:
+    filtered = [value for value in values if value is not None]
+    if not filtered:
+        return None
+    return sum(filtered) / len(filtered)
+
+
 def run_experiments(
     client: BaseModelClient,
+    evaluator_client: BaseModelClient | None,
     datasets: dict[str, Path],
     config: RunConfig,
 ) -> tuple[Path, Path, Path, list[dict], list[dict]]:
@@ -56,6 +98,9 @@ def run_experiments(
             for strategy in STRATEGIES:
                 for row in sampled:
                     source_text = row["concatenated_text"]
+                    source_reviews = split_reviews(source_text)
+                    review_scores = score_reviews_vader(source_reviews)
+                    expected_score = expected_aggregate_sentiment(review_scores)
                     prompt = build_prompt(strategy, source_text)
 
                     start = time.perf_counter()
@@ -68,10 +113,44 @@ def run_experiments(
                     latency_s = time.perf_counter() - start
 
                     summary_text = (result.text or "").strip()
-                    negative_review = get_negative_review_by_position(source_text, dataset_position)
-                    recall, keyword_recall, matched_keywords = minority_recall(summary_text, negative_review)
-                    out_len_words = output_length_words(summary_text)
-                    comp_ratio = compression_ratio(source_text, summary_text)
+                    summary_score = score_text_vader(summary_text)
+                    deviation = sentiment_deviation(summary_score, expected_score)
+
+                    positive_count = _int_value(row, "positive_review_count")
+                    negative_count = _int_value(row, "negative_review_count")
+                    negative_block_text = extract_position_block_text(
+                        source_text,
+                        dataset_position,
+                        positive_count=positive_count,
+                        negative_count=negative_count,
+                    )
+                    cosine_similarity = cosine_similarity_texts(negative_block_text, summary_text)
+
+                    geval_score = None
+                    geval_response = ""
+                    if config.enable_geval and evaluator_client is not None:
+                        geval_prompt = build_geval_prompt(
+                            source_reviews=source_reviews,
+                            summary_text=summary_text,
+                            expected_score=expected_score,
+                            summary_score=summary_score,
+                            dataset_position=dataset_position,
+                            strategy=strategy,
+                        )
+                        geval_result = evaluator_client.generate(
+                            prompt=geval_prompt,
+                            model=config.evaluator_model,
+                            temperature=config.evaluator_temperature,
+                            max_tokens=config.evaluator_max_tokens,
+                        )
+                        geval_response = (geval_result.text or "").strip()
+                        try:
+                            geval_score = parse_geval_score(geval_response)
+                        except ValueError:
+                            geval_score = None
+
+                    input_review_count = len(source_reviews)
+                    output_word_count = output_length_words(summary_text)
 
                     record = {
                         "business_id": row["business_id"],
@@ -79,13 +158,20 @@ def run_experiments(
                         "dataset_position": dataset_position,
                         "strategy": strategy,
                         "model": config.model,
+                        "evaluator_model": config.evaluator_model if config.enable_geval else "",
                         "input_concatenated_text": source_text,
-                        "minority_recall": recall,
-                        "keyword_recall": keyword_recall,
+                        "input_review_count": input_review_count,
+                        "positive_review_count": positive_count if positive_count is not None else "",
+                        "negative_review_count": negative_count if negative_count is not None else "",
+                        "review_scores": "|".join(f"{score:.4f}" for score in review_scores),
+                        "expected_vader_score": round(expected_score, 4),
+                        "summary_vader_score": round(summary_score, 4),
+                        "sentiment_deviation": round(deviation, 4),
+                        "negative_review_cosine_similarity": round(cosine_similarity, 4),
+                        "geval_score": round(geval_score, 4) if geval_score is not None else "",
+                        "geval_response": geval_response,
                         "latency_s": round(latency_s, 4),
-                        "output_words": out_len_words,
-                        "compression_ratio": round(comp_ratio, 4),
-                        "matched_negative_keywords": "|".join(matched_keywords[:5]),
+                        "output_words": output_word_count,
                         "summary": summary_text,
                     }
                     records.append(record)
@@ -94,9 +180,12 @@ def run_experiments(
                         "business_id": record["business_id"],
                         "dataset_position": record["dataset_position"],
                         "strategy": record["strategy"],
-                        "minority_recall": record["minority_recall"],
+                        "expected_vader_score": record["expected_vader_score"],
+                        "summary_vader_score": record["summary_vader_score"],
+                        "sentiment_deviation": record["sentiment_deviation"],
+                        "negative_review_cosine_similarity": record["negative_review_cosine_similarity"],
+                        "geval_score": record["geval_score"],
                         "latency_s": record["latency_s"],
-                        "output_words": record["output_words"],
                     }
                     log_handle.write(json.dumps(lean_log, ensure_ascii=False) + "\n")
 
@@ -112,43 +201,53 @@ def aggregate_metrics(records: list[dict]) -> list[dict]:
         key = (record["strategy"], record["dataset_position"])
         grouped.setdefault(key, []).append(record)
 
-    summary_rows = []
+    summary_rows: list[dict] = []
     for (strategy, dataset_position), rows in sorted(grouped.items()):
         n = len(rows)
-        avg_recall = sum(r["minority_recall"] for r in rows) / n if n else 0.0
-        avg_latency = sum(r["latency_s"] for r in rows) / n if n else 0.0
-        avg_len = sum(r["output_words"] for r in rows) / n if n else 0.0
+        avg_expected = _average([_float_value(row.get("expected_vader_score")) for row in rows])
+        avg_summary = _average([_float_value(row.get("summary_vader_score")) for row in rows])
+        avg_deviation = _average([_float_value(row.get("sentiment_deviation")) for row in rows])
+        avg_cosine = _average([_float_value(row.get("negative_review_cosine_similarity")) for row in rows])
+        avg_geval = _average([_float_value(row.get("geval_score")) for row in rows])
+        avg_latency = _average([_float_value(row.get("latency_s")) for row in rows])
+        avg_len = _average([_float_value(row.get("output_words")) for row in rows])
 
         summary_rows.append(
             {
                 "strategy": strategy,
                 "dataset_position": dataset_position,
                 "samples": n,
-                "minority_recall_rate": round(avg_recall, 4),
-                "avg_latency_s": round(avg_latency, 4),
-                "avg_output_words": round(avg_len, 2),
+                "avg_expected_vader_score": round(avg_expected, 4) if avg_expected is not None else "",
+                "avg_summary_vader_score": round(avg_summary, 4) if avg_summary is not None else "",
+                "avg_sentiment_deviation": round(avg_deviation, 4) if avg_deviation is not None else "",
+                "avg_negative_review_cosine_similarity": round(avg_cosine, 4) if avg_cosine is not None else "",
+                "avg_geval_score": round(avg_geval, 4) if avg_geval is not None else "",
+                "avg_latency_s": round(avg_latency, 4) if avg_latency is not None else "",
+                "avg_output_words": round(avg_len, 2) if avg_len is not None else "",
             }
         )
 
-    # Position sensitivity per strategy: max recall difference across top/middle/end.
-    recalls_by_strategy: dict[str, list[float]] = {}
+    deviation_by_strategy: dict[str, list[float]] = {}
     for row in summary_rows:
-        recalls_by_strategy.setdefault(row["strategy"], []).append(row["minority_recall_rate"])
+        value = _float_value(row.get("avg_sentiment_deviation"))
+        if value is not None:
+            deviation_by_strategy.setdefault(row["strategy"], []).append(value)
 
-    for strategy, recalls in recalls_by_strategy.items():
-        if recalls:
-            sensitivity = max(recalls) - min(recalls)
-        else:
-            sensitivity = 0.0
+    for strategy, deviations in deviation_by_strategy.items():
+        spread = max(deviations) - min(deviations) if deviations else 0.0
         summary_rows.append(
             {
                 "strategy": strategy,
                 "dataset_position": "ALL",
                 "samples": "-",
-                "minority_recall_rate": "-",
+                "avg_expected_vader_score": "-",
+                "avg_summary_vader_score": "-",
+                "avg_sentiment_deviation": "-",
+                "avg_negative_review_cosine_similarity": "-",
+                "avg_geval_score": "-",
                 "avg_latency_s": "-",
                 "avg_output_words": "-",
-                "position_sensitivity": round(sensitivity, 4),
+                "position_sensitivity": round(spread, 4),
             }
         )
 
@@ -160,7 +259,11 @@ def write_summary_csv(rows: list[dict], output_path: Path):
         "strategy",
         "dataset_position",
         "samples",
-        "minority_recall_rate",
+        "avg_expected_vader_score",
+        "avg_summary_vader_score",
+        "avg_sentiment_deviation",
+        "avg_negative_review_cosine_similarity",
+        "avg_geval_score",
         "avg_latency_s",
         "avg_output_words",
         "position_sensitivity",
@@ -181,14 +284,21 @@ def write_detailed_csv(rows: list[dict], output_path: Path):
         "dataset_position",
         "strategy",
         "model",
+        "evaluator_model",
+        "input_review_count",
+        "positive_review_count",
+        "negative_review_count",
         "input_concatenated_text",
-        "summary",
-        "minority_recall",
-        "keyword_recall",
+        "review_scores",
+        "expected_vader_score",
+        "summary_vader_score",
+        "sentiment_deviation",
+        "negative_review_cosine_similarity",
+        "geval_score",
+        "geval_response",
         "latency_s",
         "output_words",
-        "compression_ratio",
-        "matched_negative_keywords",
+        "summary",
     ]
     with output_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)

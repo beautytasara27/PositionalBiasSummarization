@@ -25,20 +25,18 @@ def ordered_reviews(rows, negative_position: str):
     positive_reviews = [row for row in rows if row.get("sentiment") == "positive"]
     negative_reviews = [row for row in rows if row.get("sentiment") == "negative"]
 
-    if len(positive_reviews) != 10:
-        raise ValueError(f"Expected 10 positive reviews, found {len(positive_reviews)}")
-    if len(negative_reviews) != 1:
-        raise ValueError(f"Expected 1 negative review, found {len(negative_reviews)}")
-
-    negative_review = negative_reviews[0]
+    if not positive_reviews:
+        raise ValueError("Expected at least one positive review.")
+    if not negative_reviews:
+        raise ValueError("Expected at least one negative review.")
 
     if negative_position == "top":
-        ordered = [negative_review] + positive_reviews
+        ordered = negative_reviews + positive_reviews
     elif negative_position == "middle":
         split_point = len(positive_reviews) // 2
-        ordered = positive_reviews[:split_point] + [negative_review] + positive_reviews[split_point:]
+        ordered = positive_reviews[:split_point] + negative_reviews + positive_reviews[split_point:]
     elif negative_position == "end":
-        ordered = positive_reviews + [negative_review]
+        ordered = positive_reviews + negative_reviews
     else:
         raise ValueError(f"Unsupported negative position: {negative_position}")
 
@@ -51,10 +49,15 @@ def build_concatenated_rows(grouped_rows, business_names, negative_position: str
     for business_id, rows in grouped_rows.items():
         ordered = ordered_reviews(rows, negative_position)
         concatenated_text = "\n\n".join(row["review_text"].strip() for row in ordered)
+        positive_count = sum(1 for row in rows if row.get("sentiment") == "positive")
+        negative_count = sum(1 for row in rows if row.get("sentiment") == "negative")
         dataset_rows.append(
             {
                 "business_id": business_id,
                 "business_name": business_names.get(business_id, ""),
+                "positive_review_count": positive_count,
+                "negative_review_count": negative_count,
+                "total_review_count": positive_count + negative_count,
                 "concatenated_text": concatenated_text,
             }
         )
@@ -65,14 +68,24 @@ def build_concatenated_rows(grouped_rows, business_names, negative_position: str
 
 def write_csv(rows, output_path: Path):
     with output_path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["business_id", "business_name", "concatenated_text"])
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "business_id",
+                "business_name",
+                "positive_review_count",
+                "negative_review_count",
+                "total_review_count",
+                "concatenated_text",
+            ],
+        )
         writer.writeheader()
         writer.writerows(rows)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Create per-business concatenated review datasets with one negative review placed at different positions.")
-    parser.add_argument("--input-csv", default="positional_bias_dataset.csv", help="Path to the 1100-row sample dataset CSV")
+    parser = argparse.ArgumentParser(description="Create per-business concatenated review datasets with configurable review counts and negative placement.")
+    parser.add_argument("--input-csv", default="positional_bias_dataset.csv", help="Path to the sample dataset CSV")
     parser.add_argument("--output-prefix", default="positional_bias_concatenated", help="Prefix for the generated CSV files")
     args = parser.parse_args()
 

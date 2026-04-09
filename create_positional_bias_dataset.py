@@ -28,21 +28,23 @@ def load_business_metadata(path: Path):
     return metadata
 
 
-def load_eligible_business_ids(stats_csv_path: Path):
+def load_eligible_business_ids(stats_csv_path: Path, positive_count: int, negative_count: int):
     eligible = []
     with stats_csv_path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
-            if row.get("meets_10_five_star_1_negative") not in {"True", "true", "1"}:
+            five_star_reviews = int(row.get("five_star_reviews") or 0)
+            negative_reviews = int(row.get("negative_reviews") or 0)
+            if five_star_reviews < positive_count or negative_reviews < negative_count:
                 continue
             eligible.append(
                 {
                     "business_id": row["business_id"],
                     "business_name": row.get("name", ""),
                     "review_count": int(row.get("review_count") or 0),
-                    "five_star_reviews": int(row.get("five_star_reviews") or 0),
+                    "five_star_reviews": five_star_reviews,
                     "positive_reviews": int(row.get("positive_reviews") or 0),
-                    "negative_reviews": int(row.get("negative_reviews") or 0),
+                    "negative_reviews": negative_reviews,
                 }
             )
     return eligible
@@ -76,7 +78,13 @@ def collect_reviews_for_businesses(review_path: Path, selected_business_ids: set
     return collected
 
 
-def build_dataset_rows(selected_businesses, collected_reviews, seed: int):
+def build_dataset_rows(
+    selected_businesses,
+    collected_reviews,
+    positive_count: int,
+    negative_count: int,
+    seed: int,
+):
     rng = random.Random(seed)
     rows = []
 
@@ -85,15 +93,21 @@ def build_dataset_rows(selected_businesses, collected_reviews, seed: int):
         positive_reviews = collected_reviews[business_id]["positive"]
         negative_reviews = collected_reviews[business_id]["negative"]
 
-        if len(positive_reviews) < 10:
-            raise ValueError(f"Business {business_id} has only {len(positive_reviews)} positive reviews available.")
-        if len(negative_reviews) < 1:
-            raise ValueError(f"Business {business_id} has no negative reviews available.")
+        if len(positive_reviews) < positive_count:
+            raise ValueError(
+                f"Business {business_id} has only {len(positive_reviews)} positive reviews available."
+            )
+        if len(negative_reviews) < negative_count:
+            raise ValueError(
+                f"Business {business_id} has only {len(negative_reviews)} negative reviews available."
+            )
 
-        rng.shuffle(positive_reviews)
-        rng.shuffle(negative_reviews)
+        positive_sample = positive_reviews[:]
+        negative_sample = negative_reviews[:]
+        rng.shuffle(positive_sample)
+        rng.shuffle(negative_sample)
 
-        sampled_reviews = positive_reviews[:10] + negative_reviews[:1]
+        sampled_reviews = positive_sample[:positive_count] + negative_sample[:negative_count]
         rng.shuffle(sampled_reviews)
 
         for position, review in enumerate(sampled_reviews, start=1):
@@ -117,6 +131,9 @@ def build_dataset_rows(selected_businesses, collected_reviews, seed: int):
                     "cool": review.get("cool", 0),
                     "sentiment": sentiment,
                     "position_in_sample": position,
+                    "positive_review_count": positive_count,
+                    "negative_review_count": negative_count,
+                    "total_review_count": positive_count + negative_count,
                 }
             )
 
@@ -141,6 +158,9 @@ def write_dataset(rows, output_path: Path):
         "cool",
         "sentiment",
         "position_in_sample",
+        "positive_review_count",
+        "negative_review_count",
+        "total_review_count",
     ]
 
     with output_path.open("w", newline="", encoding="utf-8") as handle:
@@ -151,14 +171,21 @@ def write_dataset(rows, output_path: Path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Create a positional-bias review dataset with 100 businesses.")
+    parser = argparse.ArgumentParser(description="Create a positional-bias review dataset with configurable review counts.")
     parser.add_argument("--business-file", default="business.json", help="Path to business.json")
     parser.add_argument("--review-file", default="review.json", help="Path to review.json")
     parser.add_argument("--stats-file", default="business_review_stats.csv", help="Path to the business stats CSV")
     parser.add_argument("--output-csv", default="positional_bias_dataset.csv", help="Path for the generated dataset CSV")
     parser.add_argument("--business-limit", type=int, default=100, help="Number of businesses to include")
+    parser.add_argument("--positive-count", type=int, default=10, help="Number of positive reviews to sample per business")
+    parser.add_argument("--negative-count", type=int, default=1, help="Number of negative reviews to sample per business")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducible sampling")
     args = parser.parse_args()
+
+    if args.positive_count < 1:
+        raise ValueError("--positive-count must be at least 1.")
+    if args.negative_count < 1:
+        raise ValueError("--negative-count must be at least 1.")
 
     workspace = Path(__file__).resolve().parent
     business_path = (workspace / args.business_file).resolve()
@@ -167,11 +194,11 @@ def main():
     output_path = (workspace / args.output_csv).resolve()
 
     metadata = load_business_metadata(business_path)
-    eligible_businesses = load_eligible_business_ids(stats_path)
+    eligible_businesses = load_eligible_business_ids(stats_path, args.positive_count, args.negative_count)
 
     if len(eligible_businesses) < args.business_limit:
         raise ValueError(
-            f"Only {len(eligible_businesses)} businesses meet the 10-five-star/1-negative requirement; "
+            f"Only {len(eligible_businesses)} businesses meet the {args.positive_count}-positive/{args.negative_count}-negative requirement; "
             f"need {args.business_limit}."
         )
 
@@ -184,7 +211,13 @@ def main():
         business.update(metadata.get(business_id, {}))
 
     collected_reviews = collect_reviews_for_businesses(review_path, selected_business_ids)
-    dataset_rows = build_dataset_rows(selected_businesses, collected_reviews, args.seed)
+    dataset_rows = build_dataset_rows(
+        selected_businesses,
+        collected_reviews,
+        args.positive_count,
+        args.negative_count,
+        args.seed,
+    )
     write_dataset(dataset_rows, output_path)
 
     per_business_counts = defaultdict(lambda: {"five_star": 0, "negative": 0})
@@ -196,7 +229,7 @@ def main():
     print(f"Businesses meeting the requirement: {len(eligible_businesses)}")
     print(f"Businesses selected: {len(selected_businesses)}")
     print(f"Total rows written: {len(dataset_rows)}")
-    print(f"Expected rows: {len(selected_businesses) * 11}")
+    print(f"Expected rows: {len(selected_businesses) * (args.positive_count + args.negative_count)}")
     print(f"Output file: {output_path}")
     print()
     print("Sampled business check")

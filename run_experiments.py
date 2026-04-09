@@ -30,7 +30,7 @@ def parse_args():
         "--provider",
         default="openrouter",
         choices=["mock", "openrouter", "openai"],
-        help="Model provider",
+        help="Model provider for summary generation",
     )
     parser.add_argument(
         "--model",
@@ -42,6 +42,22 @@ def parse_args():
         ),
     )
     parser.add_argument(
+        "--evaluator-provider",
+        default="openrouter",
+        choices=["mock", "openrouter", "openai"],
+        help="Model provider for G-Eval judging",
+    )
+    parser.add_argument(
+        "--evaluator-model",
+        default="gpt-4o",
+        help="Model used for G-Eval scoring",
+    )
+    parser.add_argument(
+        "--skip-geval",
+        action="store_true",
+        help="Skip the G-Eval model-based evaluation pass.",
+    )
+    parser.add_argument(
         "--list-models",
         action="store_true",
         help="Print supported OpenRouter model aliases and exit.",
@@ -50,6 +66,8 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--temperature", type=float, default=0.2, help="Sampling temperature")
     parser.add_argument("--max-tokens", type=int, default=220, help="Max output tokens")
+    parser.add_argument("--evaluator-temperature", type=float, default=0.0, help="Temperature for G-Eval")
+    parser.add_argument("--evaluator-max-tokens", type=int, default=80, help="Max tokens for G-Eval")
     parser.add_argument("--top-csv", default="positional_bias_concatenated_top.csv")
     parser.add_argument("--middle-csv", default="positional_bias_concatenated_middle.csv")
     parser.add_argument("--end-csv", default="positional_bias_concatenated_end.csv")
@@ -75,6 +93,7 @@ def main():
     }
 
     client = build_model_client(args.provider)
+    evaluator_client = None if args.skip_geval else build_model_client(args.evaluator_provider)
     config = RunConfig(
         model=args.model,
         temperature=args.temperature,
@@ -82,10 +101,15 @@ def main():
         sample_size=args.sample_size,
         seed=args.seed,
         output_dir=(workspace / args.output_dir).resolve(),
+        evaluator_model=args.evaluator_model,
+        evaluator_temperature=args.evaluator_temperature,
+        evaluator_max_tokens=args.evaluator_max_tokens,
+        enable_geval=not args.skip_geval,
     )
 
     log_path, detailed_path, summary_path, records, summary_rows = run_experiments(
         client=client,
+        evaluator_client=evaluator_client,
         datasets=datasets,
         config=config,
     )
@@ -93,6 +117,11 @@ def main():
     print("Experiment run complete")
     print(f"Provider: {args.provider}")
     print(f"Model: {args.model}")
+    if args.skip_geval:
+        print("G-Eval: skipped")
+    else:
+        print(f"G-Eval provider: {args.evaluator_provider}")
+        print(f"G-Eval model: {args.evaluator_model}")
     print(f"Total inferences: {len(records)}")
     print(f"Lean logs: {log_path}")
     print(f"Detailed per-sample CSV: {detailed_path}")
@@ -105,9 +134,9 @@ def main():
         else:
             print(
                 f"- {row['strategy']} | {row['dataset_position']}: "
-                f"recall={row['minority_recall_rate']}, "
-                f"latency={row['avg_latency_s']}s, "
-                f"output_words={row['avg_output_words']}"
+                f"sentiment_deviation={row['avg_sentiment_deviation']}, "
+                f"geval={row['avg_geval_score']}, "
+                f"cosine_similarity={row['avg_negative_review_cosine_similarity']}"
             )
 
 
