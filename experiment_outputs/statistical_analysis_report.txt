@@ -1,0 +1,199 @@
+========================================================================
+POSITIONAL BIAS — STATISTICAL ANALYSIS REPORT
+========================================================================
+Significance: *** p<0.001  ** p<0.01  * p<0.05  ns = not significant
+Effect η²:    negligible<0.01 | small<0.06 | medium<0.14 | large>=0.14
+
+────────────────────────────────────────────────────────────────────────
+  STRATEGY: BASELINE
+────────────────────────────────────────────────────────────────────────
+
+  Metric : sentiment_deviation  [ALL SCALES POOLED]
+  ANOVA  : F(2,6) = 0.007,  p = 0.993011 ns
+  Effect : eta2 = 0.0023  (negligible)
+  Kruskal: H = 0.0672,  p = 0.966945 ns
+  Group means:
+    top       n=   3  mean=0.46757  std=0.28817
+    middle    n=   3  mean=0.44173  std=0.23474
+    end       n=   3  mean=0.47130  std=0.28875
+  Tukey HSD: no significant pairwise differences
+
+  Metric : sentiment_deviation  [scale=1]
+  ANOVA  : F(2,6) = 0.007,  p = 0.993011 ns
+  Effect : eta2 = 0.0023  (negligible)
+  Kruskal: H = 0.0672,  p = 0.966945 ns
+  Group means:
+    top       n=   3  mean=0.46757  std=0.28817
+    middle    n=   3  mean=0.44173  std=0.23474
+    end       n=   3  mean=0.47130  std=0.28875
+  Tukey HSD: no significant pairwise differences
+
+  Metric : negative_review_cosine_similarity  [ALL SCALES POOLED]
+  ANOVA  : F(2,6) = 0.0559,  p = 0.946148 ns
+  Effect : eta2 = 0.0183  (small)
+  Kruskal: H = 0.8739,  p = 0.645988 ns
+  Group means:
+    top       n=   3  mean=0.16510  std=0.10510
+    middle    n=   3  mean=0.17997  std=0.11608
+    end       n=   3  mean=0.19863  std=0.07615
+  Tukey HSD: no significant pairwise differences
+
+  Metric : negative_review_cosine_similarity  [scale=1]
+  ANOVA  : F(2,6) = 0.0559,  p = 0.946148 ns
+  Effect : eta2 = 0.0183  (small)
+  Kruskal: H = 0.8739,  p = 0.645988 ns
+  Group means:
+    top       n=   3  mean=0.16510  std=0.10510
+    middle    n=   3  mean=0.17997  std=0.11608
+    end       n=   3  mean=0.19863  std=0.07615
+  Tukey HSD: no significant pairwise differences
+
+  Metric : geval_score  [ALL SCALES POOLED]
+  ANOVA  : F(2,6) = 4.0,  p = 0.078717 ns
+  Effect : eta2 = 0.5714  (large)
+  Kruskal: H = 4.5714,  p = 0.101701 ns
+  Group means:
+    top       n=   3  mean=4.00000  std=0.00000
+    middle    n=   3  mean=4.00000  std=0.00000
+    end       n=   3  mean=4.66667  std=0.47140
+  Tukey HSD: no significant pairwise differences
+
+  Metric : geval_score  [scale=1]
+  ANOVA  : F(2,6) = 4.0,  p = 0.078717 ns
+  Effect : eta2 = 0.5714  (large)
+  Kruskal: H = 4.5714,  p = 0.101701 ns
+  Group means:
+    top       n=   3  mean=4.00000  std=0.00000
+    middle    n=   3  mean=4.00000  std=0.00000
+    end       n=   3  mean=4.66667  std=0.47140
+  Tukey HSD: no significant pairwise differences
+────────────────────────────────────────────────────────────────────────
+  STRATEGY: COT
+────────────────────────────────────────────────────────────────────────
+
+  Metric : sentiment_deviation  [ALL SCALES POOLED]
+  ANOVA  : F(2,6) = 0.1811,  p = 0.838719 ns
+  Effect : eta2 = 0.0569  (small)
+  Kruskal: H = 1.098,  p = 0.577516 ns
+  Group means:
+    top       n=   3  mean=0.41240  std=0.17751
+    middle    n=   3  mean=0.48630  std=0.30301
+    end       n=   3  mean=0.31580  std=0.34471
+  Tukey HSD: no significant pairwise differences
+
+  Metric : sentiment_deviation  [scale=1]
+  ANOVA  : F(2,6) = 0.1811,  p = 0.838719 ns
+  Effect : eta2 = 0.0569  (small)
+  Kruskal: H = 1.098,  p = 0.577516 ns
+  Group means:
+    top       n=   3  mean=0.41240  std=0.17751
+    middle    n=   3  mean=0.48630  std=0.30301
+    end       n=   3  mean=0.31580  std=0.34471
+  Tukey HSD: no significant pairwise differences
+
+  Metric : negative_review_cosine_similarity  [ALL SCALES POOLED]
+  ANOVA  : F(2,6) = 0.0051,  p = 0.994937 ns
+  Effect : eta2 = 0.0017  (negligible)
+  Kruskal: H = 0.0672,  p = 0.966945 ns
+  Group means:
+    top       n=   3  mean=0.18830  std=0.11196
+    middle    n=   3  mean=0.18353  std=0.11099
+    end       n=   3  mean=0.19550  std=0.13421
+  Tukey HSD: no significant pairwise differences
+
+  Metric : negative_review_cosine_similarity  [scale=1]
+  ANOVA  : F(2,6) = 0.0051,  p = 0.994937 ns
+  Effect : eta2 = 0.0017  (negligible)
+  Kruskal: H = 0.0672,  p = 0.966945 ns
+  Group means:
+    top       n=   3  mean=0.18830  std=0.11196
+    middle    n=   3  mean=0.18353  std=0.11099
+    end       n=   3  mean=0.19550  std=0.13421
+  Tukey HSD: no significant pairwise differences
+
+  Metric : geval_score  [ALL SCALES POOLED]
+  ANOVA  : F(2,6) = 0.3333,  p = 0.729 ns
+  Effect : eta2 = 0.1  (medium)
+  Kruskal: H = 0.8,  p = 0.67032 ns
+  Group means:
+    top       n=   3  mean=4.33333  std=0.47140
+    middle    n=   3  mean=4.66667  std=0.47140
+    end       n=   3  mean=4.66667  std=0.47140
+  Tukey HSD: no significant pairwise differences
+
+  Metric : geval_score  [scale=1]
+  ANOVA  : F(2,6) = 0.3333,  p = 0.729 ns
+  Effect : eta2 = 0.1  (medium)
+  Kruskal: H = 0.8,  p = 0.67032 ns
+  Group means:
+    top       n=   3  mean=4.33333  std=0.47140
+    middle    n=   3  mean=4.66667  std=0.47140
+    end       n=   3  mean=4.66667  std=0.47140
+  Tukey HSD: no significant pairwise differences
+────────────────────────────────────────────────────────────────────────
+  STRATEGY: REPETITION
+────────────────────────────────────────────────────────────────────────
+
+  Metric : sentiment_deviation  [ALL SCALES POOLED]
+  ANOVA  : F(2,6) = 0.9167,  p = 0.44937 ns
+  Effect : eta2 = 0.234  (large)
+  Kruskal: H = 1.4222,  p = 0.491098 ns
+  Group means:
+    top       n=   3  mean=0.45603  std=0.28854
+    middle    n=   3  mean=0.15060  std=0.11680
+    end       n=   3  mean=0.28210  std=0.23819
+  Tukey HSD: no significant pairwise differences
+
+  Metric : sentiment_deviation  [scale=1]
+  ANOVA  : F(2,6) = 0.9167,  p = 0.44937 ns
+  Effect : eta2 = 0.234  (large)
+  Kruskal: H = 1.4222,  p = 0.491098 ns
+  Group means:
+    top       n=   3  mean=0.45603  std=0.28854
+    middle    n=   3  mean=0.15060  std=0.11680
+    end       n=   3  mean=0.28210  std=0.23819
+  Tukey HSD: no significant pairwise differences
+
+  Metric : negative_review_cosine_similarity  [ALL SCALES POOLED]
+  ANOVA  : F(2,6) = 0.0458,  p = 0.955579 ns
+  Effect : eta2 = 0.015  (small)
+  Kruskal: H = 0.0889,  p = 0.956529 ns
+  Group means:
+    top       n=   3  mean=0.17740  std=0.10906
+    middle    n=   3  mean=0.21853  std=0.16371
+    end       n=   3  mean=0.19347  std=0.13275
+  Tukey HSD: no significant pairwise differences
+
+  Metric : negative_review_cosine_similarity  [scale=1]
+  ANOVA  : F(2,6) = 0.0458,  p = 0.955579 ns
+  Effect : eta2 = 0.015  (small)
+  Kruskal: H = 0.0889,  p = 0.956529 ns
+  Group means:
+    top       n=   3  mean=0.17740  std=0.10906
+    middle    n=   3  mean=0.21853  std=0.16371
+    end       n=   3  mean=0.19347  std=0.13275
+  Tukey HSD: no significant pairwise differences
+
+  Metric : geval_score  [ALL SCALES POOLED]
+  ANOVA  : F(2,6) = 0.3333,  p = 0.729 ns
+  Effect : eta2 = 0.1  (medium)
+  Kruskal: H = 0.8,  p = 0.67032 ns
+  Group means:
+    top       n=   3  mean=4.33333  std=0.47140
+    middle    n=   3  mean=4.33333  std=0.47140
+    end       n=   3  mean=4.66667  std=0.47140
+  Tukey HSD: no significant pairwise differences
+
+  Metric : geval_score  [scale=1]
+  ANOVA  : F(2,6) = 0.3333,  p = 0.729 ns
+  Effect : eta2 = 0.1  (medium)
+  Kruskal: H = 0.8,  p = 0.67032 ns
+  Group means:
+    top       n=   3  mean=4.33333  std=0.47140
+    middle    n=   3  mean=4.33333  std=0.47140
+    end       n=   3  mean=4.66667  std=0.47140
+  Tukey HSD: no significant pairwise differences
+
+========================================================================
+END OF REPORT
+========================================================================

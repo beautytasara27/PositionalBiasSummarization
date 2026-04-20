@@ -1,0 +1,10 @@
+strategy,dataset_position,positive_review_count,bertscore_neg_f1_mean,bertscore_neg_f1_std,bertscore_all_f1_mean,bertscore_all_f1_std,neg_attention_ratio_mean,neg_attention_ratio_std
+baseline,end,1,0.86185,0.02272,0.86079,0.0245,1.00129,0.00811
+baseline,middle,1,0.86014,0.0301,0.8588,0.02643,1.00149,0.00955
+baseline,top,1,0.85794,0.02419,0.85719,0.02501,1.00091,0.00434
+cot,end,1,0.86297,0.03014,0.86005,0.0318,1.00346,0.0073
+cot,middle,1,0.85954,0.02957,0.86153,0.02854,0.99769,0.0104
+cot,top,1,0.85933,0.03235,0.85828,0.03153,1.00121,0.00348
+repetition,end,1,0.85918,0.02431,0.85808,0.02639,1.00133,0.00512
+repetition,middle,1,0.85853,0.02942,0.86153,0.03135,0.9966,0.00905
+repetition,top,1,0.85838,0.02842,0.85756,0.02616,1.00091,0.00394
